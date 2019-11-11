@@ -5,7 +5,8 @@ version: 1.0
 custom_scripts:
   # This scripts will be displayed on the scratch org's page
   scratch_org:
-    'Import data':
+    'Import seed data':
       description: Import the seed data into the scratch org
       run: sfdx force:data:tree:import --plan ./data/sample-data-plan.json
 
+    'Deploy community metadata': sfdx force:mdapi:deploy -u ebikes --deploydir mdapiDeploy/unpackaged -w 1
