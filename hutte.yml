@@ -1,0 +1,11 @@
+version: 1.0
+
+# The scripts defined under this keys will be displayed as
+# buttons on hutte.io
+custom_scripts:
+  # This scripts will be displayed on the scratch org's page
+  scratch_org:
+    'Import data':
+      description: Import the seed data into the scratch org
+      run: sfdx force:data:tree:import --plan ./data/sample-data-plan.json
+
