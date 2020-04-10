@@ -1,5 +1,9 @@
 version: 1.0
 
+setup_script: |
+  echo "It's setup!"
+  exit 0
+
 # Here we use hour push_script configuration to automate the
 # assignment of the permission set
 push_script: |
