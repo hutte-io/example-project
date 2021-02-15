@@ -1,21 +1,13 @@
 import { createElement } from 'lwc';
 import ProductTileList from 'c/productTileList';
-import { fireEvent } from 'c/pubsub';
 import {
     registerTestWireAdapter,
     registerApexTestWireAdapter
 } from '@salesforce/sfdx-lwc-jest';
+import { publish, MessageContext } from 'lightning/messageService';
+import PRODUCTS_FILTERED_MESSAGE from '@salesforce/messageChannel/ProductsFiltered__c';
+import PRODUCT_SELECTED_MESSAGE from '@salesforce/messageChannel/ProductSelected__c';
 import getProducts from '@salesforce/apex/ProductController.getProducts';
-import { CurrentPageReference } from 'lightning/navigation';
-
-// Mock out the pubsub lib and use these mocks to verify how functions were called
-jest.mock('c/pubsub', () => {
-    return {
-        fireEvent: jest.fn(),
-        registerListener: jest.fn(),
-        unregisterAllListeners: jest.fn()
-    };
-});
 
 // Realistic data with multiple records
 const mockGetProducts = require('./data/getProducts.json');
@@ -28,7 +20,7 @@ const getProductsAdapter = registerApexTestWireAdapter(getProducts);
 
 // Register as a standard wire adapter because the component under test requires this adapter.
 // We don't exercise this wire adapter in the tests.
-registerTestWireAdapter(CurrentPageReference);
+registerTestWireAdapter(MessageContext);
 
 describe('c-product-tile-list', () => {
     afterEach(() => {
@@ -146,7 +138,7 @@ describe('c-product-tile-list', () => {
             });
         });
 
-        it('fires productSelected event when c-product-tile selected', () => {
+        it('sends productSelected event when c-product-tile selected', () => {
             const element = createElement('c-product-tile-list', {
                 is: ProductTileList
             });
@@ -158,10 +150,10 @@ describe('c-product-tile-list', () => {
                     'c-product-tile'
                 );
                 productTile.dispatchEvent(new CustomEvent('selected'));
-                expect(fireEvent).toHaveBeenCalledWith(
+                expect(publish).toHaveBeenCalledWith(
                     undefined,
-                    'productSelected',
-                    null
+                    PRODUCT_SELECTED_MESSAGE,
+                    { productId: null }
                 );
             });
         });
@@ -213,21 +205,20 @@ describe('c-product-tile-list', () => {
             getProductsAdapter.error();
             return Promise.resolve()
                 .then(() => {
-                    const inlineMessage = element.shadowRoot.querySelector(
-                        'c-inline-message'
+                    const errorPanel = element.shadowRoot.querySelector(
+                        'c-error-panel'
                     );
-                    // check the "Show Details" checkbox to render additional error messages
-                    const lightningInput = inlineMessage.shadowRoot.querySelector(
-                        'lightning-input'
+                    // Click the "Show Details" link to render additional error messages
+                    const lightningInput = errorPanel.shadowRoot.querySelector(
+                        'a'
                     );
-                    lightningInput.checked = true;
-                    lightningInput.dispatchEvent(new CustomEvent('change'));
+                    lightningInput.dispatchEvent(new CustomEvent('click'));
                 })
                 .then(() => {
-                    const inlineMessage = element.shadowRoot.querySelector(
-                        'c-inline-message'
+                    const errorPanel = element.shadowRoot.querySelector(
+                        'c-error-panel'
                     );
-                    const text = inlineMessage.shadowRoot.textContent;
+                    const text = errorPanel.shadowRoot.textContent;
                     expect(text).toContain(defaultError);
                 });
         });
@@ -257,5 +248,59 @@ describe('c-product-tile-list', () => {
                     expect(filters).toEqual(expected);
                 });
         });
+    });
+
+    describe('with filter changes', () => {
+        it('updates product list when filters change', () => {
+            const element = createElement('c-product-tile-list', {
+                is: ProductTileList
+            });
+            document.body.appendChild(element);
+
+            // Simulate filter change
+            const mockMessage = {
+                filters: { searchKey: 'mockValue', maxPrice: 666 }
+            };
+            publish(null, PRODUCTS_FILTERED_MESSAGE, mockMessage);
+
+            // Check that wire gets called with new filters
+            return Promise.resolve().then(() => {
+                const { filters } = getProductsAdapter.getLastConfig();
+                expect(filters).toEqual(mockMessage.filters);
+            });
+        });
+    });
+
+    it('is accessible when products returned', () => {
+        const element = createElement('c-product-tile-list', {
+            is: ProductTileList
+        });
+
+        document.body.appendChild(element);
+        getProductsAdapter.emit(mockGetProducts);
+
+        return Promise.resolve().then(() => expect(element).toBeAccessible());
+    });
+
+    it('is accessible when no products returned', () => {
+        const element = createElement('c-product-tile-list', {
+            is: ProductTileList
+        });
+
+        document.body.appendChild(element);
+        getProductsAdapter.emit(mockGetProductsNoRecords);
+
+        return Promise.resolve().then(() => expect(element).toBeAccessible());
+    });
+
+    it('is accessible when error returned', () => {
+        const element = createElement('c-product-tile-list', {
+            is: ProductTileList
+        });
+
+        document.body.appendChild(element);
+        getProductsAdapter.error();
+
+        return Promise.resolve().then(() => expect(element).toBeAccessible());
     });
 });

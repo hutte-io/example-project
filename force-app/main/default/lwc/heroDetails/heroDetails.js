@@ -1,17 +1,16 @@
-import { LightningElement, api, wire, track } from 'lwc';
-import { NavigationMixin } from 'lightning/navigation';
+import { LightningElement, api, wire } from 'lwc';
 import getRecordInfo from '@salesforce/apex/ProductRecordInfoController.getRecordInfo';
 
 /**
  * Details component that is on top of the video.
  */
-export default class HeroDetails extends NavigationMixin(LightningElement) {
-    @api title;
+export default class HeroDetails extends LightningElement {
+    @api title = 'Hero Details'; // Default title to comply with accessibility
     @api slogan;
     @api recordName;
-    @api recordInfoData;
 
-    @track hrefUrl;
+    recordInfoData;
+    hrefUrl;
 
     @wire(getRecordInfo, { productOrFamilyName: '$recordName' })
     recordInfo({ error, data }) {
@@ -24,32 +23,5 @@ export default class HeroDetails extends NavigationMixin(LightningElement) {
                 this.hrefUrl = `product-family/${data[0]}`;
             }
         }
-    }
-
-    // Implement this when lightning-navigation in Communities is fixed
-    onButtonClickHandler(evt) {
-        // Stop the event's default behavior.
-        // Stop the event from bubbling up in the DOM.
-        evt.preventDefault();
-        evt.stopPropagation();
-
-        if (
-            !this.recordInfoData ||
-            !this.recordInfoData.data ||
-            this.recordInfoData.error
-        ) {
-            // eslint-disable-next-line no-console
-            console.error('No record information! Cannot navigate anywhere!');
-            return;
-        }
-
-        this[NavigationMixin.Navigate]({
-            type: 'standard__recordPage',
-            attributes: {
-                recordId: this.recordInfoData.data[0],
-                objectApiName: this.recordInfoData.data[1],
-                actionName: 'view'
-            }
-        });
     }
 }
